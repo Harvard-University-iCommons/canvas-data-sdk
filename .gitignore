@@ -1,0 +1,15 @@
+.DS_Store
+.coverage
+*.pyc
+.cache/v/cache
+.tox
+*.egg-info
+htmlcov
+*.swo
+*.db
+*.gz
+docs/_build
+*.csv
+cdata_venv
+build
+dist
