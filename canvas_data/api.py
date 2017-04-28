@@ -2,20 +2,8 @@ from .hmac_auth import CanvasDataHMACAuth, API_ROOT
 import requests
 from requests.exceptions import RequestException, ConnectionError
 from .exceptions import CanvasDataAPIError, MissingCredentialsError, APIConnectionError
-
-# Some tables have one name in the schema (keys) and a different name in the dumps (values)
-TABLE_MAP = {
-    'course': 'course_dim',
-    'user': 'user_dim',
-    'enrollment_term': 'enrollment_term_dim',
-    'course_section': 'course_section_dim',
-    'account': 'account_dim',
-    'conversation_message': 'conversation_message_dim',
-    'enrollment_rollup': 'enrollment_rollup_dim',
-    'conversation': 'conversation_dim',
-    'conversation_message_participant': 'conversation_message_participant_fact',
-}
-
+import os
+import gzip
 
 class CanvasDataAPI(object):
 
@@ -42,14 +30,25 @@ class CanvasDataAPI(object):
         except RequestException as e:
             raise CanvasDataAPIError("A generic requests error occurred", e)
 
-    def get_schema(self, version):
-        """Get a particular version of the schema."""
+    def get_schema(self, version, key_on_tablenames=False):
+        """
+        Get a particular version of the schema.
+        Note that the keys in the returned data structure are usually, but not always,
+        the same as the table names. If you'd rather have the keys in the returned data
+        structure always exactly match the table names, set `key_on_tablenames=True`
+        """
         url = '{}/api/schema/{}'.format(API_ROOT, version)
         try:
             response = requests.get(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
             if response.status_code == 200:
                 schema = response.json()
-                return schema
+                if key_on_tablenames:
+                    fixed_schema = {}
+                    for k, v in schema['schema'].iteritems():
+                        fixed_schema[v['tableName']] = v
+                    return fixed_schema
+
+                return schema['schema']
             else:
                 response_data = response.json()
                 raise CanvasDataAPIError(response_data['message'])
@@ -98,6 +97,101 @@ class CanvasDataAPI(object):
         except RequestException as e:
             raise CanvasDataAPIError("A generic requests error occurred", e)
 
-    def fix_table_name(self, table_name):
-        """Returns the correct dump table name given a schema table name."""
-        return TABLE_MAP.get(table_name, table_name)
+    def get_sync_file_urls(self, account_id='self'):
+        """Get a list of file URLs that constitute a complete snapshot of the current data"""
+        url = '{}/api/account/{}/file/sync'.format(API_ROOT, account_id)
+        try:
+            response = requests.get(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
+            if response.status_code == 200:
+                files = response.json()
+                return files
+            else:
+                response_data = response.json()
+                raise CanvasDataAPIError(response_data['message'])
+        except ConnectionError as e:
+            raise APIConnectionError("A connection error occurred", e)
+        except RequestException as e:
+            raise CanvasDataAPIError("A generic requests error occurred", e)
+
+    def download_files(self, account_id='self', dump_id=None, table_name=None, directory='./downloads', include_requests=True):
+        """Download all of the files for a specific dump, all of the files for a specific table, or the files for a specific table from a specific dump."""
+        local_files = []
+        if dump_id:
+            dump_files = self.get_file_urls(account_id=account_id, dump_id=dump_id)
+            for dump_table_name, artifacts in dump_files['artifactsByTable'].iteritems():
+                if table_name and table_name != dump_table_name:
+                    continue
+                else:
+                    if dump_table_name == 'requests' and not include_requests:
+                        continue
+                    else:
+                        # download the files
+                        for file in artifacts['files']:
+                            target_file = '{}/{}'.format(directory, file['filename'])
+                            local_files.append(target_file)
+                            if os.path.isfile(target_file):
+                                # the file already exists in the download directory
+                                continue
+                            else:
+                                r = requests.get(file['url'], stream=True)
+                                with open(target_file, 'wb') as fd:
+                                    for chunk in r.iter_content(chunk_size=128):
+                                        fd.write(chunk)
+
+        elif table_name:
+            # no dump ID was specified; just get all of the files for the specified table
+            dump_files = self.get_file_urls(account_id=account_id, table_name=table_name)
+            for dump in dump_files['history']:
+                for file in dump['files']:
+                    target_file = '{}/{}'.format(directory, file['filename'])
+                    local_files.append(target_file)
+                    if os.path.isfile(target_file):
+                        # the file already exists in the download directory
+                        continue
+                    else:
+                        r = requests.get(file['url'], stream=True)
+                        with open(target_file, 'wb') as fd:
+                            for chunk in r.iter_content(chunk_size=128):
+                                fd.write(chunk)
+
+        else:
+            raise CanvasDataAPIError("Neither dump_id or table_name was specified; must specify at least one.")
+
+        return local_files
+
+    def get_csv_header_for_table(self, table_name, account_id='self', schema_version='latest'):
+        schema = self.get_schema(version=schema_version, key_on_tablenames=True)
+        table = schema[table_name]
+        header = ','.join([x['name'] for x in table['columns']])
+        return header
+
+    def get_csv_for_table(self, table_name, account_id='self', dump_id='latest', csv_directory='./csv'):
+        # need to get the schema version associated with the dump_id so that we can prepend the correct header row
+        dumps = self.get_dumps()
+        if dump_id == 'latest':
+            dump = dumps[0]
+            dump_id = dump['dumpId']
+        else:
+            for d in dumps:
+                if d['dumpId'] == dump_id:
+                    dump = d
+            if not dump:
+                raise CanvasDataAPIError("Could not find dump ID {}".format(dump_id))
+        schema_version = dump['schemaVersion']
+
+        # get the CSV header for this table and schema version
+        table_header = self.get_csv_header_for_table(table_name=table_name, account_id=account_id, schema_version=schema_version)
+
+        # get the raw data files
+        files = self.download_files(account_id=account_id, table_name=table_name, dump_id=dump_id)
+
+        outfilename = os.path.join(csv_directory, '{}.csv'.format(table_name))
+
+        with open(outfilename, 'w') as outfile:
+            outfile.write(table_header)
+            # gunzip and concatenate the files
+            for infilename in files:
+                with gzip.open(infilename, 'rb') as infile:
+                    outfile.write(infile.read())
+
+        return outfilename

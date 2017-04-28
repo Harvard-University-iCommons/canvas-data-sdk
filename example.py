@@ -1,5 +1,7 @@
 from canvas_data.api import CanvasDataAPI
 import os
+import pprint
+pp = pprint.PrettyPrinter(indent=4)
 
 
 try:
@@ -15,12 +17,11 @@ schema_versions = cd.get_schema_versions()
 
 print 'Found {} schema versions.'.format(len(schema_versions))
 
-schema = cd.get_schema('latest')
+schema = cd.get_schema('latest', key_on_tablenames=True)
 
-# some table names are incorrect in the schema; let's fix them
-schema_table_names = [cd.fix_table_name(x) for x in schema['schema'].keys()]
+pp.pprint(schema)
 
-print 'The latest schema is version {} and has {} tables.'.format(schema['version'], len(schema_table_names))
+print 'The latest schema has {} tables.'.format(len(schema))
 
 dumps = cd.get_dumps()
 
@@ -35,10 +36,37 @@ dump_table_names = dump_files['artifactsByTable'].keys()
 print 'The dump ID {} contains files for {} tables.'.format(one_dump['dumpId'], len(dump_table_names))
 
 # are there tables that are in the schema but not in the dump, or vice-versa?
-not_in_dump = [x for x in schema_table_names if x not in dump_table_names]
-not_in_schema = [x for x in dump_table_names if x not in schema_table_names]
+not_in_dump = [x for x in schema.keys() if x not in dump_table_names]
 
 print 'These tables are present in the schema but missing from the dump: {}'.format(not_in_dump)
-print 'These tables are present in the dump but missing from the schema: {}'.format(not_in_schema)
+
+# files for a particular table
+table_dump_files = cd.get_file_urls(table_name='course_dim')
+
+# get the latest files for the course_dim table
+# cd.download_files(dump_id='latest', table_name='course_dim')
+
+# get all of the files for the course_dim table:
+cd.download_files(table_name='course_dim', directory='./downloads')
+
+# get all of the files from the latest dump:
+cd.download_files(dump_id='latest', include_requests=False, directory='./downloads')
+
+# get just the course_dim table files from the latest dump
+cd.download_files(dump_id='latest', table_name='course_dim', directory='./downloads')
+
+# get the CSV header for the course_dim table
+header = cd.get_csv_header_for_table('course_dim')
+
+# get a CSV file for a table
+course_csv = cd.get_csv_for_table(table_name='course_dim')
+
+print "got {}".format(course_csv)
+
+# this API takes a while to complete...
+# sync_files = cd.get_sync_file_urls()
+# pp.pprint(sync_files)
+
+
 
 # more to come!
