@@ -13,3 +13,5 @@ docs/_build
 cdata_venv
 build
 dist
+data
+downloads
