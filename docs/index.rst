@@ -14,8 +14,8 @@ can be loaded into a local database.
    :maxdepth: 2
    :caption: Contents:
 
-   modules
-
+   intro
+   canvas_data
 
 
 Indices and tables

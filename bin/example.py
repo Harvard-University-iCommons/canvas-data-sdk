@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from canvas_data.api import CanvasDataAPI
 import os
 import pprint
