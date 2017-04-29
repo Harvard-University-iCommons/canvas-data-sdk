@@ -20,7 +20,7 @@ First, create a CanvasDataAPI object::
   API_KEY = os.environ['API_KEY']
   API_SECRET = os.environ['API_SECRET']
 
-  cd = CanvasDataAPI(api_key=API_KEY, api_secret=API_SECRET)``
+  cd = CanvasDataAPI(api_key=API_KEY, api_secret=API_SECRET)
 
 Now you can use this object to interact with the API as detailed below.
 
