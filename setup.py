@@ -1,11 +1,11 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
 
 setup(
     name='canvas-data-sdk',
     version='0.1.0',
     author='Colin Murtaugh',
     author_email='cmurtaugh@gmail.com',
-    packages=['canvas_data'],
+    packages=find_packages(),
     scripts=['bin/canvas_data_example.py'],
     url='http://pypi.python.org/pypi/canvas-data-sdk/',
     license='LICENSE.txt',
