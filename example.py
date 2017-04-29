@@ -43,25 +43,25 @@ print 'These tables are present in the schema but missing from the dump: {}'.for
 # files for a particular table
 table_dump_files = cd.get_file_urls(table_name='course_dim')
 
-# get the latest files for the course_dim table
-# cd.download_files(dump_id='latest', table_name='course_dim')
+# get all of the files for the course_dim table (this will take a while to run):
+# cd.download_files(table_name='course_dim', directory='./downloads')
 
-# get all of the files for the course_dim table:
-cd.download_files(table_name='course_dim', directory='./downloads')
-
-# get all of the files from the latest dump:
-cd.download_files(dump_id='latest', include_requests=False, directory='./downloads')
+# get all of the files from the latest dump: (this will take a while to run)
+# latest_dump_files = cd.download_files(dump_id='latest', include_requests=False, directory='./downloads')
 
 # get just the course_dim table files from the latest dump
-cd.download_files(dump_id='latest', table_name='course_dim', directory='./downloads')
+latest_course_files = cd.download_files(dump_id='latest', table_name='course_dim', directory='./downloads')
+print 'Latest course files: {}'.format(latest_course_files)
 
-# get the CSV header for the course_dim table
-header = cd.get_csv_header_for_table('course_dim')
 
-# get a CSV file for a table
-course_csv = cd.get_csv_for_table(table_name='course_dim')
+# get a data file for a particular table
+course_tsv = cd.get_data_for_table(table_name='course_dim')
 
-print "got {}".format(course_csv)
+print "got {}".format(course_tsv)
+
+account_tsv = cd.get_data_for_table(table_name='account_dim')
+
+print "got {}".format(account_tsv)
 
 # this API takes a while to complete...
 # sync_files = cd.get_sync_file_urls()

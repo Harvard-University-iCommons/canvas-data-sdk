@@ -5,6 +5,7 @@ from .exceptions import CanvasDataAPIError, MissingCredentialsError, APIConnecti
 import os
 import gzip
 
+
 class CanvasDataAPI(object):
 
     def __init__(self, api_key, api_secret):
@@ -159,37 +160,16 @@ class CanvasDataAPI(object):
 
         return local_files
 
-    def get_csv_header_for_table(self, table_name, account_id='self', schema_version='latest'):
-        schema = self.get_schema(version=schema_version, key_on_tablenames=True)
-        table = schema[table_name]
-        header = ','.join([x['name'] for x in table['columns']])
-        return header
-
-    def get_csv_for_table(self, table_name, account_id='self', dump_id='latest', csv_directory='./csv'):
-        # need to get the schema version associated with the dump_id so that we can prepend the correct header row
-        dumps = self.get_dumps()
-        if dump_id == 'latest':
-            dump = dumps[0]
-            dump_id = dump['dumpId']
-        else:
-            for d in dumps:
-                if d['dumpId'] == dump_id:
-                    dump = d
-            if not dump:
-                raise CanvasDataAPIError("Could not find dump ID {}".format(dump_id))
-        schema_version = dump['schemaVersion']
-
-        # get the CSV header for this table and schema version
-        table_header = self.get_csv_header_for_table(table_name=table_name, account_id=account_id, schema_version=schema_version)
+    def get_data_for_table(self, table_name, account_id='self', dump_id='latest', data_directory='./data'):
+        """Decompresses and concatenates the dump files for a particular table and writes the resulting data to a text file."""
 
         # get the raw data files
         files = self.download_files(account_id=account_id, table_name=table_name, dump_id=dump_id)
 
-        outfilename = os.path.join(csv_directory, '{}.csv'.format(table_name))
+        outfilename = os.path.join(data_directory, '{}.txt'.format(table_name))
 
         with open(outfilename, 'w') as outfile:
-            outfile.write(table_header)
-            # gunzip and concatenate the files
+            # gunzip each file and write the data to the output file
             for infilename in files:
                 with gzip.open(infilename, 'rb') as infile:
                     outfile.write(infile.read())
