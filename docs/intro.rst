@@ -13,8 +13,11 @@ Install from PyPi using pip:
 Usage
 =====
 
-First, create a CanvasDataAPI object::
+First, create a CanvasDataAPI object. You need to supply your API key and secret.
+Here we assume that those are available in environment variables, but you could
+read them from configuration, too::
 
+  import os
   from canvas_data.api import CanvasDataAPI
 
   API_KEY = os.environ['API_KEY']

@@ -1,9 +1,10 @@
-import requests
-import sys
 import base64
-import hmac
 import hashlib
+import hmac
+import sys
 from datetime import datetime
+
+import requests
 
 try:
     from urllib import urlencode

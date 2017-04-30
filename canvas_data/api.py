@@ -1,9 +1,12 @@
-from .hmac_auth import CanvasDataHMACAuth, API_ROOT
-import requests
-from requests.exceptions import RequestException, ConnectionError
-from .exceptions import CanvasDataAPIError, MissingCredentialsError, APIConnectionError
-import os
 import gzip
+import os
+
+import requests
+from requests.exceptions import ConnectionError, RequestException
+
+from .exceptions import (APIConnectionError, CanvasDataAPIError,
+                         MissingCredentialsError)
+from .hmac_auth import API_ROOT, CanvasDataHMACAuth
 
 
 class CanvasDataAPI(object):
@@ -15,23 +18,30 @@ class CanvasDataAPI(object):
         self.api_key = api_key
         self.api_secret = api_secret
 
+        self.schema = {}
+        self.schema_versions = None
+
     def get_schema_versions(self):
         """Get the list of all available schema versions."""
         url = '{}/api/schema'.format(API_ROOT)
-        try:
-            response = requests.get(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
-            if response.status_code == 200:
-                schema_versions = response.json()
-                return schema_versions
-            else:
-                response_data = response.json()
-                raise CanvasDataAPIError(response_data['message'])
-        except ConnectionError as e:
-            raise APIConnectionError("A connection error occurred", e)
-        except RequestException as e:
-            raise CanvasDataAPIError("A generic requests error occurred", e)
+        if self.schema_versions:
+            return self.schema_versions
+        else:
+            try:
+                response = requests.get(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
+                if response.status_code == 200:
+                    schema_versions = response.json()
+                    self.schema_versions = schema_versions
+                    return schema_versions
+                else:
+                    response_data = response.json()
+                    raise CanvasDataAPIError(response_data['message'])
+            except ConnectionError as e:
+                raise APIConnectionError("A connection error occurred", e)
+            except RequestException as e:
+                raise CanvasDataAPIError("A generic requests error occurred", e)
 
-    def get_schema(self, version, key_on_tablenames=False):
+    def get_schema(self, version='latest', key_on_tablenames=False):
         """
         Get a particular version of the schema.
         Note that the keys in the returned data structure are usually, but not always,
@@ -39,24 +49,31 @@ class CanvasDataAPI(object):
         structure always exactly match the table names, set `key_on_tablenames=True`
         """
         url = '{}/api/schema/{}'.format(API_ROOT, version)
-        try:
-            response = requests.get(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
-            if response.status_code == 200:
-                schema = response.json()
-                if key_on_tablenames:
-                    fixed_schema = {}
-                    for k, v in schema['schema'].iteritems():
-                        fixed_schema[v['tableName']] = v
-                    return fixed_schema
+        cache_key = '{}/{}'.format(version, key_on_tablenames)
+        if cache_key in self.schema:
+            return self.schema[cache_key]
+        else:
+            try:
+                response = requests.get(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
+                if response.status_code == 200:
+                    schema = response.json()
+                    if key_on_tablenames:
+                        fixed_schema = {}
+                        for k, v in schema['schema'].iteritems():
+                            fixed_schema[v['tableName']] = v
+                        self.schema[cache_key] = fixed_schema
+                        return fixed_schema
 
-                return schema['schema']
-            else:
-                response_data = response.json()
-                raise CanvasDataAPIError(response_data['message'])
-        except ConnectionError as e:
-            raise APIConnectionError("A connection error occurred", e)
-        except RequestException as e:
-            raise CanvasDataAPIError("A generic requests error occurred", e)
+                    self.schema[cache_key] = schema['schema']
+                    return schema['schema']
+
+                else:
+                    response_data = response.json()
+                    raise CanvasDataAPIError(response_data['message'])
+            except ConnectionError as e:
+                raise APIConnectionError("A connection error occurred", e)
+            except RequestException as e:
+                raise CanvasDataAPIError("A generic requests error occurred", e)
 
     def get_dumps(self, account_id='self'):
         """Get a list of all dumps"""
@@ -175,3 +192,17 @@ class CanvasDataAPI(object):
                     outfile.write(infile.read())
 
         return outfilename
+
+    def get_data_for_dump(self, dump_id, account_id='self', data_directory='./data', include_requests=False):
+        """Decompresses and concatenates the dump files for all of the tables in a particular dump."""
+        dump = self.get_file_urls(dump_id=dump_id, account_id=account_id)
+        dump_table_names = dump['artifactsByTable'].keys()
+
+        outfiles = []
+        for table_name in dump_table_names:
+            if table_name == 'requests' and not include_requests:
+                continue
+            filename = self.get_data_for_table(table_name=table_name, account_id=account_id, dump_id=dump_id, data_directory=data_directory)
+            outfiles.append(filename)
+
+        return outfiles
