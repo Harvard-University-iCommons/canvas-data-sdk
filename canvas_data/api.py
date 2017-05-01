@@ -190,7 +190,7 @@ class CanvasDataAPI(object):
                                 logger.debug("Not downloading %s because it already exists.", target_file)
                                 continue
                             else:
-                                r = _download_file(file['url'])
+                                r = _get_with_retries(file['url'], stream=True)
                                 # TODO: check to make sure download was successful
                                 with open(target_file, 'wb') as fd:
                                     for chunk in r.iter_content(chunk_size=128):
@@ -207,7 +207,7 @@ class CanvasDataAPI(object):
                         logger.debug("Not downloading %s because it already exists.", target_file)
                         continue
                     else:
-                        r = _download_file(file['url'])
+                        r = _get_with_retries(file['url'], stream=True)
                         with open(target_file, 'wb') as fd:
                             for chunk in r.iter_content(chunk_size=128):
                                 fd.write(chunk)
