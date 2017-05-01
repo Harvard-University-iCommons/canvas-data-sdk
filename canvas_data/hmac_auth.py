@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import hmac
+import logging
 import sys
 from datetime import datetime
 
@@ -17,6 +18,8 @@ try:
 except:
     # For Python 3
     from urllib.parse import parse_qs
+
+logging.getLogger(__name__)
 
 API_ROOT = 'https://api.inshosteddata.com'
 SIGNATURE_MESSAGE_TEMPLATE = '''GET

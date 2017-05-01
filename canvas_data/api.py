@@ -1,5 +1,7 @@
 import gzip
+import logging
 import os
+import time
 
 import requests
 from requests.exceptions import ConnectionError, RequestException
@@ -7,6 +9,43 @@ from requests.exceptions import ConnectionError, RequestException
 from .exceptions import (APIConnectionError, CanvasDataAPIError,
                          MissingCredentialsError)
 from .hmac_auth import API_ROOT, CanvasDataHMACAuth
+
+logger = logging.getLogger(__name__)
+
+
+def retry(func):
+    """File download retry decorator"""
+    def retried_func(*args, **kwargs):
+        MAX_TRIES = 3
+        tries = 0
+        while True:
+            try:
+                resp = func(*args, **kwargs)
+                if resp.status_code != 200 and tries < MAX_TRIES:
+                    logger.warning("Got a non-200 response ({}) - going to retry.".format(resp.status_code))
+                    tries += 1
+                    time.sleep(3)
+                    continue
+
+            except ConnectionError as e:
+                resp = None
+                if tries < MAX_TRIES:
+                    tries += 1
+                    logger.exception("ConnectionError - %d/%d tries", tries, MAX_TRIES)
+                    time.sleep(3)
+                    continue
+                else:
+                    logger.exception("ConnectionError - reached the retry limit")
+                    raise e
+            break
+
+        return resp
+    return retried_func
+
+
+@retry
+def _get_with_retries(*args, **kwargs):
+    return requests.get(*args, **kwargs)
 
 
 class CanvasDataAPI(object):
@@ -28,7 +67,7 @@ class CanvasDataAPI(object):
             return self.schema_versions
         else:
             try:
-                response = requests.get(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
+                response = _get_with_retries(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
                 if response.status_code == 200:
                     schema_versions = response.json()
                     self.schema_versions = schema_versions
@@ -54,7 +93,7 @@ class CanvasDataAPI(object):
             return self.schema[cache_key]
         else:
             try:
-                response = requests.get(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
+                response = _get_with_retries(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
                 if response.status_code == 200:
                     schema = response.json()
                     if key_on_tablenames:
@@ -79,7 +118,7 @@ class CanvasDataAPI(object):
         """Get a list of all dumps"""
         url = '{}/api/account/{}/dump'.format(API_ROOT, account_id)
         try:
-            response = requests.get(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
+            response = _get_with_retries(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
             if response.status_code == 200:
                 dumps = response.json()
                 return dumps
@@ -103,7 +142,7 @@ class CanvasDataAPI(object):
         else:
             raise CanvasDataAPIError("Must pass either dump_id or table_name")
         try:
-            response = requests.get(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
+            response = _get_with_retries(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
             if response.status_code == 200:
                 files = response.json()
                 return files
@@ -111,7 +150,7 @@ class CanvasDataAPI(object):
                 response_data = response.json()
                 raise CanvasDataAPIError(response_data['message'])
         except ConnectionError as e:
-            raise APIConnectionError("A connection error occurred", e)
+            raise APIConnectionError("A connection error occurred")
         except RequestException as e:
             raise CanvasDataAPIError("A generic requests error occurred", e)
 
@@ -119,7 +158,7 @@ class CanvasDataAPI(object):
         """Get a list of file URLs that constitute a complete snapshot of the current data"""
         url = '{}/api/account/{}/file/sync'.format(API_ROOT, account_id)
         try:
-            response = requests.get(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
+            response = _get_with_retries(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
             if response.status_code == 200:
                 files = response.json()
                 return files
@@ -131,7 +170,7 @@ class CanvasDataAPI(object):
         except RequestException as e:
             raise CanvasDataAPIError("A generic requests error occurred", e)
 
-    def download_files(self, account_id='self', dump_id=None, table_name=None, directory='./downloads', include_requests=True):
+    def download_files(self, account_id='self', dump_id=None, table_name=None, directory='./downloads', include_requests=True, force=False):
         """Download all of the files for a specific dump, all of the files for a specific table, or the files for a specific table from a specific dump."""
         local_files = []
         if dump_id:
@@ -147,11 +186,12 @@ class CanvasDataAPI(object):
                         for file in artifacts['files']:
                             target_file = '{}/{}'.format(directory, file['filename'])
                             local_files.append(target_file)
-                            if os.path.isfile(target_file):
-                                # the file already exists in the download directory
+                            if os.path.isfile(target_file) and not force:
+                                logger.debug("Not downloading %s because it already exists.", target_file)
                                 continue
                             else:
-                                r = requests.get(file['url'], stream=True)
+                                r = _download_file(file['url'])
+                                # TODO: check to make sure download was successful
                                 with open(target_file, 'wb') as fd:
                                     for chunk in r.iter_content(chunk_size=128):
                                         fd.write(chunk)
@@ -163,11 +203,11 @@ class CanvasDataAPI(object):
                 for file in dump['files']:
                     target_file = '{}/{}'.format(directory, file['filename'])
                     local_files.append(target_file)
-                    if os.path.isfile(target_file):
-                        # the file already exists in the download directory
+                    if os.path.isfile(target_file) and not force:
+                        logger.debug("Not downloading %s because it already exists.", target_file)
                         continue
                     else:
-                        r = requests.get(file['url'], stream=True)
+                        r = _download_file(file['url'])
                         with open(target_file, 'wb') as fd:
                             for chunk in r.iter_content(chunk_size=128):
                                 fd.write(chunk)
@@ -177,23 +217,26 @@ class CanvasDataAPI(object):
 
         return local_files
 
-    def get_data_for_table(self, table_name, account_id='self', dump_id='latest', data_directory='./data'):
+    def get_data_for_table(self, table_name, account_id='self', dump_id='latest', data_directory='./data', force=False):
         """Decompresses and concatenates the dump files for a particular table and writes the resulting data to a text file."""
-
-        # get the raw data files
-        files = self.download_files(account_id=account_id, table_name=table_name, dump_id=dump_id)
-
         outfilename = os.path.join(data_directory, '{}.txt'.format(table_name))
 
-        with open(outfilename, 'w') as outfile:
-            # gunzip each file and write the data to the output file
-            for infilename in files:
-                with gzip.open(infilename, 'rb') as infile:
-                    outfile.write(infile.read())
+        if os.path.isfile(outfilename) and not force:
+            logger.debug("Not overwriting %s because it already exists.", outfilename)
+            return outfilename
+        else:
+            # get the raw data files
+            files = self.download_files(account_id=account_id, table_name=table_name, dump_id=dump_id)
 
-        return outfilename
+            with open(outfilename, 'w') as outfile:
+                # gunzip each file and write the data to the output file
+                for infilename in files:
+                    with gzip.open(infilename, 'rb') as infile:
+                        outfile.write(infile.read())
 
-    def get_data_for_dump(self, dump_id, account_id='self', data_directory='./data', include_requests=False):
+            return outfilename
+
+    def get_data_for_dump(self, dump_id='latest', account_id='self', data_directory='./data', include_requests=False, force=False):
         """Decompresses and concatenates the dump files for all of the tables in a particular dump."""
         dump = self.get_file_urls(dump_id=dump_id, account_id=account_id)
         dump_table_names = dump['artifactsByTable'].keys()

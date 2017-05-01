@@ -5,7 +5,6 @@ class CanvasDataAPIError(Exception):
     def __init__(self, msg=None):
         if msg is None:
             msg = "An error occurred when calling the Canvas Data API"
-        print "inside CanvasDataAPIError init"
         super(CanvasDataAPIError, self).__init__(msg)
 
 
