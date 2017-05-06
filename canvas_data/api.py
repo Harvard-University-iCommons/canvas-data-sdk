@@ -170,7 +170,8 @@ class CanvasDataAPI(object):
         except RequestException as e:
             raise CanvasDataAPIError("A generic requests error occurred", e)
 
-    def download_files(self, account_id='self', dump_id=None, table_name=None, directory='./downloads', include_requests=True, force=False):
+    def download_files(self, account_id='self', dump_id=None, table_name=None,
+                       download_directory='./downloads', include_requests=True, force=False):
         """Download all of the files for a specific dump, all of the files for a specific table, or the files for a specific table from a specific dump."""
         local_files = []
         if dump_id:
@@ -184,40 +185,35 @@ class CanvasDataAPI(object):
                     else:
                         # download the files
                         for file in artifacts['files']:
-                            target_file = '{}/{}'.format(directory, file['filename'])
-                            local_files.append(target_file)
-                            if os.path.isfile(target_file) and not force:
-                                logger.debug("Not downloading %s because it already exists.", target_file)
-                                continue
-                            else:
-                                r = _get_with_retries(file['url'], stream=True)
-                                # TODO: check to make sure download was successful
-                                with open(target_file, 'wb') as fd:
-                                    for chunk in r.iter_content(chunk_size=128):
-                                        fd.write(chunk)
+                            local_files.append(self.get_file(file=file, download_directory=download_directory, force=force))
 
         elif table_name:
             # no dump ID was specified; just get all of the files for the specified table
             dump_files = self.get_file_urls(account_id=account_id, table_name=table_name)
             for dump in dump_files['history']:
                 for file in dump['files']:
-                    target_file = '{}/{}'.format(directory, file['filename'])
-                    local_files.append(target_file)
-                    if os.path.isfile(target_file) and not force:
-                        logger.debug("Not downloading %s because it already exists.", target_file)
-                        continue
-                    else:
-                        r = _get_with_retries(file['url'], stream=True)
-                        with open(target_file, 'wb') as fd:
-                            for chunk in r.iter_content(chunk_size=128):
-                                fd.write(chunk)
+                    local_files.append(self.get_file(file=file, download_directory=download_directory, force=force))
 
         else:
             raise CanvasDataAPIError("Neither dump_id or table_name was specified; must specify at least one.")
 
         return local_files
 
-    def get_data_for_table(self, table_name, account_id='self', dump_id='latest', data_directory='./data', force=False):
+    def get_file(self, file, download_directory='./downloads', force=False):
+        target_file = '{}/{}'.format(download_directory, file['filename'])
+        if os.path.isfile(target_file) and not force:
+            logger.debug("Not downloading %s because it already exists.", target_file)
+            pass
+        else:
+            r = _get_with_retries(file['url'], stream=True)
+            with open(target_file, 'wb') as fd:
+                for chunk in r.iter_content(chunk_size=128):
+                    fd.write(chunk)
+        return target_file
+
+    def get_data_for_table(self, table_name, account_id='self', dump_id='latest',
+                           data_directory='./data', download_directory='./downloads',
+                           force=False):
         """Decompresses and concatenates the dump files for a particular table and writes the resulting data to a text file."""
         outfilename = os.path.join(data_directory, '{}.txt'.format(table_name))
 
@@ -226,17 +222,22 @@ class CanvasDataAPI(object):
             return outfilename
         else:
             # get the raw data files
-            files = self.download_files(account_id=account_id, table_name=table_name, dump_id=dump_id)
+            files = self.download_files(account_id=account_id, dump_id=dump_id, table_name=table_name, download_directory=download_directory)
 
             with open(outfilename, 'w') as outfile:
                 # gunzip each file and write the data to the output file
                 for infilename in files:
                     with gzip.open(infilename, 'rb') as infile:
-                        outfile.write(infile.read())
+                        try:
+                            outfile.write(infile.read())
+                        except IOError as e:
+                            logger.error('Input file: %s  Output file: %s', infilename, outfilename)
+                            raise e
 
             return outfilename
 
-    def get_data_for_dump(self, dump_id='latest', account_id='self', data_directory='./data', include_requests=False, force=False):
+    def get_data_for_dump(self, dump_id='latest', account_id='self', data_directory='./data',
+                          download_directory='./downloads', include_requests=False, force=False):
         """Decompresses and concatenates the dump files for all of the tables in a particular dump."""
         dump = self.get_file_urls(dump_id=dump_id, account_id=account_id)
         dump_table_names = dump['artifactsByTable'].keys()
@@ -245,7 +246,8 @@ class CanvasDataAPI(object):
         for table_name in dump_table_names:
             if table_name == 'requests' and not include_requests:
                 continue
-            filename = self.get_data_for_table(table_name=table_name, account_id=account_id, dump_id=dump_id, data_directory=data_directory)
+            filename = self.get_data_for_table(table_name=table_name, account_id=account_id, dump_id=dump_id,
+                                               data_directory=data_directory, download_directory=download_directory)
             outfiles.append(filename)
 
         return outfiles
