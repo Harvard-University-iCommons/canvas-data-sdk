@@ -47,7 +47,7 @@ def get_schema(ctx, version):
 @click.option('--force', is_flag=True, default=False, help='re-download files even if they already exist (default False)')
 @click.pass_context
 def get_dump_files(ctx, dump_id, download_dir, table, force):
-    """Downloads the Canvas Data files for a particular dump"""
+    """Downloads the Canvas Data files for a particular dump. Can be optionally limited to a single table."""
     if download_dir:
         ctx.obj['download_dir'] = download_dir
     if table:
@@ -83,7 +83,10 @@ def get_dump_files(ctx, dump_id, download_dir, table, force):
 @click.option('--force', is_flag=True, default=False, help='re-download/re-unpack files even if they already exist (default False)')
 @click.pass_context
 def unpack_dump_files(ctx, dump_id, download_dir, data_dir, table, force):
-    """Downloads, uncompresses and re-assembles the Canvas Data files for a dump"""
+    """
+    Downloads, uncompresses and re-assembles the Canvas Data files for a dump. Can be
+    optionally limited to a single table.
+    """
     if download_dir:
         ctx.obj['download_dir'] = download_dir
     if data_dir:
