@@ -114,11 +114,17 @@ class CanvasDataAPI(object):
             except RequestException as e:
                 raise CanvasDataAPIError("A generic requests error occurred", e)
 
-    def get_dumps(self, account_id='self'):
+    def get_dumps(self, account_id='self', limit=100, after_sequence=None):
         """Get a list of all dumps"""
         url = '{}/api/account/{}/dump'.format(API_ROOT, account_id)
         try:
-            response = _get_with_retries(url, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
+            params = {
+                'limit': limit,
+            }
+            if after_sequence:
+                params['after'] = after_sequence
+
+            response = _get_with_retries(url, params=params, auth=CanvasDataHMACAuth(self.api_key, self.api_secret))
             if response.status_code == 200:
                 dumps = response.json()
                 return dumps
@@ -200,6 +206,10 @@ class CanvasDataAPI(object):
         return local_files
 
     def get_file(self, file, download_directory='./downloads', force=False):
+        # make sure that the download directory exists
+        if not os.path.exists(download_directory):
+            os.makedirs(download_directory)
+
         target_file = '{}/{}'.format(download_directory, file['filename'])
         if os.path.isfile(target_file) and not force:
             logger.debug("Not downloading %s because it already exists.", target_file)
@@ -214,7 +224,15 @@ class CanvasDataAPI(object):
     def get_data_for_table(self, table_name, account_id='self', dump_id='latest',
                            data_directory='./data', download_directory='./downloads',
                            force=False):
-        """Decompresses and concatenates the dump files for a particular table and writes the resulting data to a text file."""
+        """
+        Decompresses and concatenates the dump files for a particular table and writes the resulting data to a text file.
+        If a sequence parameter is passed in, the output filename will be prefixed with the sequence.
+        """
+
+        # make sure that the data directory exists
+        if not os.path.exists(data_directory):
+            os.makedirs(data_directory)
+
         outfilename = os.path.join(data_directory, '{}.txt'.format(table_name))
 
         if os.path.isfile(outfilename) and not force:
@@ -230,9 +248,9 @@ class CanvasDataAPI(object):
                     with gzip.open(infilename, 'rb') as infile:
                         try:
                             outfile.write(infile.read())
-                        except IOError as e:
-                            logger.error('Input file: %s  Output file: %s', infilename, outfilename)
-                            raise e
+                        except IOError:
+                            msg = 'Error preparing data for table {}. Input file: {}  Output file: {}'.format(table_name, infilename, outfilename)
+                            raise CanvasDataAPIError(msg)
 
             return outfilename
 
@@ -241,7 +259,6 @@ class CanvasDataAPI(object):
         """Decompresses and concatenates the dump files for all of the tables in a particular dump."""
         dump = self.get_file_urls(dump_id=dump_id, account_id=account_id)
         dump_table_names = dump['artifactsByTable'].keys()
-
         outfiles = []
         for table_name in dump_table_names:
             if table_name == 'requests' and not include_requests:
