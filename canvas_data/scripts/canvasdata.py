@@ -1,5 +1,6 @@
-import yaml
 import json
+import os
+import yaml
 
 import click
 from canvas_data.api import CanvasDataAPI
@@ -79,7 +80,7 @@ def get_dump_files(ctx, dump_id, download_dir, table, force):
 @click.option('--dump-id', default='latest', help='get files for this dump (defaults to the latest dump)')
 @click.option('--download-dir', default=None, type=click.Path(), help='store downloaded files in this directory')
 @click.option('--data-dir', default=None, type=click.Path(), help='store unpacked files in this directory')
-@click.option('--table', default=None, help='(optional) only get the files for a particular table')
+@click.option('-t', '--table', default=None, help='(optional) only get the files for a particular table')
 @click.option('--force', is_flag=True, default=False, help='re-download/re-unpack files even if they already exist (default False)')
 @click.pass_context
 def unpack_dump_files(ctx, dump_id, download_dir, data_dir, table, force):
@@ -100,20 +101,26 @@ def unpack_dump_files(ctx, dump_id, download_dir, data_dir, table, force):
     # first make sure all of the files are downloaded
     ctx.invoke(get_dump_files, dump_id=dump_id, download_dir=ctx.obj['download_dir'], table=ctx.obj.get('table'), force=force)
 
+    dump_details = cd.get_file_urls(dump_id=dump_id)
+    sequence = dump_details['sequence']
+
     table_names = []
     if ctx.obj.get('table'):
         table_names.append(ctx.obj['table'])
     else:
-        dump_details = cd.get_file_urls(dump_id=dump_id)
         table_names.extend(dump_details['artifactsByTable'].keys())
         table_names.remove('requests')
 
     data_file_names = []
     progress_label = '{: <23}'.format('Unpacking {} tables'.format(len(table_names)))
+
+    # store the data files in dump-specific subdirectory named after the sequence
+    dump_data_dir = os.path.join(ctx.obj['data_dir'], str(sequence))
+
     with click.progressbar(table_names, label=progress_label) as tnames:
         for t in tnames:
             data_file_names.append(cd.get_data_for_table(table_name=t,
                                                          dump_id=dump_id,
                                                          download_directory=ctx.obj['download_dir'],
-                                                         data_directory=ctx.obj['data_dir'],
+                                                         data_directory=dump_data_dir,
                                                          force=force))
