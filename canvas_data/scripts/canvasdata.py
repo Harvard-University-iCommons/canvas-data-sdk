@@ -58,6 +58,9 @@ def get_dump_files(ctx, dump_id, download_dir, table, force):
         api_secret=ctx.obj.get('api_secret')
     )
 
+    if dump_id is 'latest':
+        dump_id = cd.get_latest_regular_dump
+
     # first, get the dump details so we can extract the list of fragment files to download
     dump_files = []
     dump_details = cd.get_file_urls(dump_id=dump_id)
@@ -98,6 +101,10 @@ def unpack_dump_files(ctx, dump_id, download_dir, data_dir, table, force):
         api_key=ctx.obj.get('api_key'),
         api_secret=ctx.obj.get('api_secret')
     )
+
+    if dump_id is 'latest':
+        dump_id = cd.get_latest_regular_dump
+
     # first make sure all of the files are downloaded
     ctx.invoke(get_dump_files, dump_id=dump_id, download_dir=ctx.obj['download_dir'], table=ctx.obj.get('table'), force=force)
 

@@ -268,3 +268,14 @@ class CanvasDataAPI(object):
             outfiles.append(filename)
 
         return outfiles
+
+    def get_latest_regular_dump(self, account_id='self'):
+        """Finds the latest dump_id that isn't a full requests dump."""
+        last_two_dumps = self.get_dumps(account_id=account_id, limit=2)
+        dump_files = self.get_file_urls(account_id=account_id, dump_id=last_two_dumps[0]['dumpId'])
+        if dump_files['artifactsByTable']['requests']['partial']:
+            # this is not a full requests dump - just a regular dump
+            return last_two_dumps[0]['dumpId']
+        else:
+            # this is a full requests dump; return the second-most-recent dump ID instead
+            return last_two_dumps[1]['dumpId']
