@@ -30,9 +30,6 @@ def ddl_from_json(schema_json):
     for artifact in schema_json:
         table_name = schema_json[artifact]['tableName']
         json_columns = schema_json[artifact]['columns']
-        table_desc = schema_json[artifact].get('description', 'n/a')
-        incremental = schema_json[artifact]['incremental']
-
 
         t = Table(table_name, metadata)
 
@@ -49,12 +46,15 @@ def ddl_from_json(schema_json):
 
 def _get_column(table, column):
     """
-    Returns the appropriate sqlalchemy data type for a column. Some table definitions
-    are incorrect in the JSON data, so this function has some manual overrides.
+    Returns a Column with the appropriate sqlalchemy data type for a column from
+    the JSON schema description. Some column definitions are incorrect in the
+    JSON data, so this function has some manual overrides.
     """
-
-    # fix schema errors
     if table == 'group_membership_dim' and column['name'] in [u'id', u'canvas_id']:
+        """
+        The group_membership_dim.id and group_membership_dim.canvas_id columns
+        are specified as varchars but they should be bigints
+        """
         return Column(
             column['name'],
             types.BigInteger(),
@@ -65,11 +65,20 @@ def _get_column(table, column):
         u'answer_match_right',
         u'matching_answer_incorrect_matches'
     ]:
+        """
+        These three columns in the quiz_question_answer_dim table are specified
+        as having a length of 256, but the actual dumps contain longer values.
+        Using a length of 4096 instead.
+        """
         return Column(
             column['name'],
             types.String(length=4096)
         )
     elif table == 'quiz_question_dim' and column['name'] == u'name':
+        """
+        The quiz_question_dim.name column is specified as having a length of 256,
+        but the actual dumps contain longer values. Using a length of 4096 instead.
+        """
         return Column(
             column['name'],
             types.String(length=4096)
@@ -86,19 +95,3 @@ def _get_column(table, column):
         )
     else:
         return None
-
-
-    """
-    542                 "type": "bigint"
-  34                 "type": "boolean"
-   2                 "type": "date"
-   1                 "type": "datetime"
-  37                 "type": "double precision"
-  28                 "type": "enum"
-   1                 "type": "guid"
-  54                 "type": "int"
-  10                 "type": "integer"
-  28                 "type": "text"
- 122                 "type": "timestamp"
- 160                 "type": "varchar"
- """
