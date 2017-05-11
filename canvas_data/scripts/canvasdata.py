@@ -4,7 +4,7 @@ import yaml
 
 import click
 from canvas_data.api import CanvasDataAPI
-
+from canvas_data.ddl_utils import ddl_from_json
 
 @click.group()
 @click.option('-c', '--config', type=click.File('r'), envvar='CANVAS_DATA_CONFIG')
@@ -39,6 +39,24 @@ def get_schema(ctx, version):
 
     schema = cd.get_schema(version, key_on_tablenames=True)
     click.echo(json.dumps(schema, sort_keys=True, indent=4))
+
+
+@cli.command()
+@click.option('--version', default='latest')
+@click.pass_context
+def get_ddl(ctx, version):
+    """Gets DDL for a particular version of the Canvas Data schema (latest by default)"""
+    cd = CanvasDataAPI(
+        api_key=ctx.obj.get('api_key'),
+        api_secret=ctx.obj.get('api_secret')
+    )
+
+    json_schema = cd.get_schema(version, key_on_tablenames=True)
+    create_ddl, drop_ddl = ddl_from_json(json_schema)
+    for t in drop_ddl:
+        click.echo('{};'.format(t))
+    for t in create_ddl:
+        click.echo('{};'.format(t))
 
 
 @cli.command()
@@ -77,6 +95,7 @@ def get_dump_files(ctx, dump_id, download_dir, table, force):
     with click.progressbar(dump_files, label=progress_label) as file_list:
         for f in file_list:
             filenames.append(cd.get_file(file=f, download_directory=ctx.obj['download_dir'], force=force))
+    click.echo('Done.')
 
 
 @cli.command()
@@ -85,8 +104,9 @@ def get_dump_files(ctx, dump_id, download_dir, table, force):
 @click.option('--data-dir', default=None, type=click.Path(), help='store unpacked files in this directory')
 @click.option('-t', '--table', default=None, help='(optional) only get the files for a particular table')
 @click.option('--force', is_flag=True, default=False, help='re-download/re-unpack files even if they already exist (default False)')
+@click.option('--sqlfile', default=None, type=click.File('w'), help='write SQL truncate/copy script to this file')
 @click.pass_context
-def unpack_dump_files(ctx, dump_id, download_dir, data_dir, table, force):
+def unpack_dump_files(ctx, dump_id, download_dir, data_dir, table, force, sqlfile):
     """
     Downloads, uncompresses and re-assembles the Canvas Data files for a dump. Can be
     optionally limited to a single table.
@@ -131,3 +151,12 @@ def unpack_dump_files(ctx, dump_id, download_dir, data_dir, table, force):
                                                          download_directory=ctx.obj['download_dir'],
                                                          data_directory=dump_data_dir,
                                                          force=force))
+    if sqlfile:
+        for df in data_file_names:
+            abs_df = os.path.abspath(df)
+            df_path, df_file = os.path.split(df)
+            table_name, ext = df_file.split('.')
+            sqlfile.write('TRUNCATE TABLE {};\n'.format(table_name))
+            sqlfile.write("COPY {} FROM '{}';\n".format(table_name, abs_df))
+
+    click.echo('Done.')

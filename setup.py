@@ -19,6 +19,7 @@ setup(
     install_requires=[
         "requests >= 2.13.0",
         "Click >= 6.7",
-        "PyYAML >= "
+        "PyYAML >= 3.12",
+        "sqlalchemy >= 1.1.9",
     ],
 )
