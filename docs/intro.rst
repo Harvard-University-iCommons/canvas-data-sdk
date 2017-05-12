@@ -18,7 +18,7 @@ allowing highly customized workflows, or you can perform basic operations using 
 included command line utility.
 
 Using the command line utility
-==============================
+------------------------------
 
 Installing the module via pip should have also installed a command-line utility
 called `canvas-data`.  You can get help by typing::
@@ -36,7 +36,7 @@ For example::
 
 
 Configuring the command line utility
-------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 There are two global options that are needed for all of the sub-commands. You can
 include them as command line options by placing them before the sub-command::
@@ -57,8 +57,26 @@ Now you can use it like::
 
   canvas-data -c config.yml SUB-COMMAND [sub-command options]
 
+Setting Up Your Database
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Before you can load any data into your database, you first need to create all of
+the tables. You also may need to re-create tables if portions of the schema change
+in the future.
+
+You can use the `get_ddl` command to generate a Postgres or Amazon Redshift compatible
+DDL script based on the JSON-formatted schema definition provided by the Canvas
+Data API. It will default to use the latest version of the schema, but you can
+specify a different version if needed::
+
+  canvas-data -c config.yml get_ddl > recreate_tables.sql
+
+Note that this script will contain a DROP TABLE and a CREATE TABLE statement for
+every table in the schema. Please be very careful when running it -- it will
+remove all of the data from your database and you'll need to reload it.
+
 Getting and Unpacking Data Files
---------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You can fetch all of the files for a particular dump (besides the requests files -
 more on that later), decompress them, and re-assemble them into a single file for
@@ -77,11 +95,12 @@ the dump sequence number, and all of the data files will be stored under that.
 A SQL script called `truncate_and-reload.sql` will also be stored inside the dump
 sequence directory. It contains SQL statements that will truncate all of the tables (besides
 the requests table) and will load each of the data files into a database. This can be used as
-part of a daily refresh process to keep all of your tables up to date. This script
-is currently compatible with Postgres and Amazon Redshift databases.
+part of a daily refresh process to keep all of your tables up to date. The SQL
+commands are known to be compatible with Postgres and Amazon Redshift databases;
+YMMV with other databases.
 
 Downloading Data File Fragments
--------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You can just download the compressed file fragments like this::
 
@@ -90,26 +109,8 @@ You can just download the compressed file fragments like this::
 Note that if you later run the `unpack_dump_files` command, it won't need to re-download
 files that you've already fetched using `get_dump_files`.
 
-Setting Up Your Database
-------------------------
-
-Before you can load any data into your database, you first need to create all of
-the tables. You also may need to re-create tables if portions of the schema change
-in the future.
-
-You can use the `get_ddl` command to generate a Postgres or Amazon Redshift compatible
-DDL script based on the JSON-formatted schema definition provided by the Canvas
-Data API. It will default to use the latest version of the schema, but you can
-specify a different version if needed::
-
-  canvas-data -c config.yml get_ddl > recreate_tables.sql
-
-Note that this script will contain a DROP TABLE and a CREATE TABLE statement for
-every table in the schema. Please be very careful when running it -- it will
-remove all of the data from your database and you'll need to reload it. 
-
 Using the API in your own code
-==============================
+------------------------------
 
 First, create a CanvasDataAPI object. You need to supply your API key and secret.
 Here we assume that those are available in environment variables, but you could
@@ -126,7 +127,7 @@ read them from configuration, too::
 Now you can use this object to interact with the API as detailed below.
 
 Schemas
--------
+^^^^^^^
 
 Instructure occasionally updates the Canvas Data schema, and each change has a version
 number. To retrieve all of the schema versions that are available::
@@ -151,7 +152,7 @@ Or you can retrieve the latest version of the schema::
   schema = cd.get_schema('latest', key_on_tablenames=True)
 
 Dumps
------
+^^^^^
 
 Instructure produces nightly dumps of gzipped data files from your Canvas instance.
 Each nightly dump will contain the full contents of most tables, and incremental data
@@ -193,7 +194,7 @@ which will return a list similar to the following::
   ]
 
 Files
------
+^^^^^
 
 You can get details on all of the files contained in a particular dump::
 
