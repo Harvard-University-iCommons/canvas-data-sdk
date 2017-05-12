@@ -104,9 +104,8 @@ def get_dump_files(ctx, dump_id, download_dir, table, force):
 @click.option('--data-dir', default=None, type=click.Path(), help='store unpacked files in this directory')
 @click.option('-t', '--table', default=None, help='(optional) only get the files for a particular table')
 @click.option('--force', is_flag=True, default=False, help='re-download/re-unpack files even if they already exist (default False)')
-@click.option('--sqlfile', default=None, type=click.File('w'), help='write SQL truncate/copy script to this file')
 @click.pass_context
-def unpack_dump_files(ctx, dump_id, download_dir, data_dir, table, force, sqlfile):
+def unpack_dump_files(ctx, dump_id, download_dir, data_dir, table, force):
     """
     Downloads, uncompresses and re-assembles the Canvas Data files for a dump. Can be
     optionally limited to a single table.
@@ -151,7 +150,8 @@ def unpack_dump_files(ctx, dump_id, download_dir, data_dir, table, force, sqlfil
                                                          download_directory=ctx.obj['download_dir'],
                                                          data_directory=dump_data_dir,
                                                          force=force))
-    if sqlfile:
+
+    with open(os.path.join(dump_data_dir, 'truncate_and_reload.sql'), 'w') as sqlfile:
         for df in data_file_names:
             abs_df = os.path.abspath(df)
             df_path, df_file = os.path.split(df)
