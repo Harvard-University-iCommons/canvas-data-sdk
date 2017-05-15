@@ -23,24 +23,24 @@ Using the command line utility
 Installing the module via pip should have also installed a command-line utility
 called ``canvas-data``.  You can get help by using the ``--help`` option:
 
-  >>>canvas-data --help
-  Usage: canvas-data [OPTIONS] COMMAND [ARGS]...
+>>>canvas-data --help
+Usage: canvas-data [OPTIONS] COMMAND [ARGS]...
 
-  A command-line tool to work with Canvas Data. Command-specific help is
-  available at: canvas-data COMMAND --help
+A command-line tool to work with Canvas Data. Command-specific help is
+available at: canvas-data COMMAND --help
 
-  Options:
-    -c, --config FILENAME
-    --api-key TEXT
-    --api-secret TEXT
-    --help                 Show this message and exit.
+Options:
+  -c, --config FILENAME
+  --api-key TEXT
+  --api-secret TEXT
+  --help                 Show this message and exit.
 
-  Commands:
-    get-ddl            Gets DDL for a particular version of the...
-    get-dump-files     Downloads the Canvas Data files for a...
-    get-schema         Gets a particular version of the Canvas Data...
-    list-dumps         Lists available dumps
-    unpack-dump-files  Downloads, uncompresses and re-assembles the...
+Commands:
+  get-ddl            Gets DDL for a particular version of the...
+  get-dump-files     Downloads the Canvas Data files for a...
+  get-schema         Gets a particular version of the Canvas Data...
+  list-dumps         Lists available dumps
+  unpack-dump-files  Downloads, uncompresses and re-assembles the...
 
 The utility has several commands which you can see listed in the help output above.
 You can get more details on each command by typing::
