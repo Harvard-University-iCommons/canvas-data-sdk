@@ -86,6 +86,8 @@ You can use the ``list-dumps`` command to see the dumps that are available::
 
   canvas-data -c config.yml list-dumps
 
+Details for each dump will be displayed, including the sequence and dump ID. Full-requests-table dumps will
+be highlighted.
 
 Getting and Unpacking Data Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
