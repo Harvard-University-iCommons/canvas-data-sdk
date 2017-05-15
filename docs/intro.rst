@@ -32,7 +32,7 @@ get more details on each sub-command by typing::
 
 For example::
 
-  canvas-data get_schema --help
+  canvas-data get-schema --help
 
 
 Configuring the command line utility
@@ -64,12 +64,12 @@ Before you can load any data into your database, you first need to create all of
 the tables. You also may need to re-create tables if portions of the schema change
 in the future.
 
-You can use the ``get_ddl`` command to generate a Postgres or Amazon Redshift compatible
+You can use the ``get-ddl`` command to generate a Postgres or Amazon Redshift compatible
 DDL script based on the JSON-formatted schema definition provided by the Canvas
 Data API. It will default to use the latest version of the schema, but you can
 specify a different version if needed::
 
-  canvas-data -c config.yml get_ddl > recreate_tables.sql
+  canvas-data -c config.yml get-ddl > recreate_tables.sql
 
 Note that this script will contain a ``DROP TABLE`` and a ``CREATE TABLE`` statement for
 every table in the schema. Please be very careful when running it -- it will
@@ -82,9 +82,9 @@ Instructure typically creates one dump per day containing the full contents of m
 tables, and incremental data for the ``requests`` table. Occasionally Instructure will produce
 a full dump of the ``requests`` table containing data going back to the start of your instance.
 
-You can use the ``list_dumps`` command to see the dumps that are available::
+You can use the ``list-dumps`` command to see the dumps that are available::
 
-  canvas-data -c config.yml list_dumps
+  canvas-data -c config.yml list-dumps
 
 
 Getting and Unpacking Data Files
@@ -94,7 +94,7 @@ You can fetch all of the files for a particular dump (besides the requests files
 more on that later), decompress them, and re-assemble them into a single file for
 each table by using this command::
 
-  canvas-data -c config.yml unpack_dump_files
+  canvas-data -c config.yml unpack-dump-files
 
 This command will default to fetch data from the latest dump, but you can choose
 a specific dump by passing the ``--dump-id`` parameter. You can limit the command
@@ -117,10 +117,10 @@ Downloading Data File Fragments
 
 You can just download the compressed file fragments like this::
 
-  canvas-data -c config.yml get_dump_files
+  canvas-data -c config.yml get-dump-files
 
-Note that if you later run the ``unpack_dump_files`` command, it won't need to re-download
-files that you've already fetched using ``get_dump_files``.
+Note that if you later run the ``unpack-dump-files`` command, it won't need to re-download
+files that you've already fetched using ``get-dump-files``.
 
 Using the API in your own code
 ------------------------------

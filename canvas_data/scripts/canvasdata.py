@@ -1,7 +1,6 @@
 import json
 import os
 import yaml
-
 import click
 import dateutil.parser
 from dateutil import tz
@@ -10,7 +9,21 @@ from canvas_data.api import CanvasDataAPI
 from canvas_data.ddl_utils import ddl_from_json
 
 
-@click.group()
+class HyphenUnderscoreAliasedGroup(click.Group):
+
+    def get_command(self, ctx, cmd_name):
+        # try to find the command as typed
+        rv = click.Group.get_command(self, ctx, cmd_name)
+        if rv is not None:
+            return rv
+
+        # try to find the command with underscores replaced with hyphens
+        underscore_cmd_name = cmd_name.replace(u'_', u'-')
+        rv = click.Group.get_command(self, ctx, underscore_cmd_name)
+        return rv
+
+
+@click.group(cls=HyphenUnderscoreAliasedGroup)
 @click.option('-c', '--config', type=click.File('r'), envvar='CANVAS_DATA_CONFIG')
 @click.option('--api-key', envvar='CANVAS_DATA_API_KEY')
 @click.option('--api-secret', envvar='CANVAS_DATA_API_SECRET')
@@ -31,7 +44,7 @@ def cli(ctx, config, api_key, api_secret):
         ctx.obj['api_secret'] = api_secret
 
 
-@cli.command()
+@cli.command(name='get-schema')
 @click.option('--version', default='latest')
 @click.pass_context
 def get_schema(ctx, version):
@@ -45,7 +58,7 @@ def get_schema(ctx, version):
     click.echo(json.dumps(schema, sort_keys=True, indent=4))
 
 
-@cli.command()
+@cli.command(name='get-ddl')
 @click.option('--version', default='latest')
 @click.pass_context
 def get_ddl(ctx, version):
@@ -63,7 +76,7 @@ def get_ddl(ctx, version):
         click.echo('{};'.format(t))
 
 
-@cli.command()
+@cli.command(name='list-dumps')
 @click.pass_context
 def list_dumps(ctx):
     """Lists available dumps"""
@@ -84,7 +97,7 @@ def list_dumps(ctx):
             click.echo(detail_str)
 
 
-@cli.command()
+@cli.command(name='get-dump-files')
 @click.option('--dump-id', default='latest', help='get files for this dump (defaults to the latest dump)')
 @click.option('--download-dir', default=None, type=click.Path(), help='store downloaded files in this directory')
 @click.option('--table', default=None, help='(optional) only get the files for a particular table')
@@ -123,7 +136,7 @@ def get_dump_files(ctx, dump_id, download_dir, table, force):
     click.echo('Done.')
 
 
-@cli.command()
+@cli.command(name='unpack-dump-files')
 @click.option('--dump-id', default='latest', help='get files for this dump (defaults to the latest dump)')
 @click.option('--download-dir', default=None, type=click.Path(), help='store downloaded files in this directory')
 @click.option('--data-dir', default=None, type=click.Path(), help='store unpacked files in this directory')
