@@ -25,10 +25,30 @@ called ``canvas-data``.  You can get help by typing::
 
   canvas-data --help
 
-The utility has several sub-commands which are listed in the help output.  You can
-get more details on each sub-command by typing::
+which will print out basic help like::
 
-  canvas-data SUB-COMMAND --help
+  Usage: canvas-data [OPTIONS] COMMAND [ARGS]...
+
+  A command-line tool to work with Canvas Data. Command-specific help is
+  available at: canvas-data COMMAND --help
+
+  Options:
+    -c, --config FILENAME
+    --api-key TEXT
+    --api-secret TEXT
+    --help                 Show this message and exit.
+
+  Commands:
+    get-ddl            Gets DDL for a particular version of the...
+    get-dump-files     Downloads the Canvas Data files for a...
+    get-schema         Gets a particular version of the Canvas Data...
+    list-dumps         Lists available dumps
+    unpack-dump-files  Downloads, uncompresses and re-assembles the...
+
+The utility has several commands which you can see listed in the help output above.
+You can get more details on each command by typing::
+
+  canvas-data COMMAND --help
 
 For example::
 
@@ -38,13 +58,13 @@ For example::
 Configuring the command line utility
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-There are two global options that are needed for all of the sub-commands. You can
-include them as command line options by placing them before the sub-command::
+There are two global options that are needed for all of the commands. You can
+include them as command line options by placing them before the command::
 
-  canvas-data --api-key=XXXXX --api-secret=YYYYY SUB-COMMAND [sub-command options]
+  canvas-data --api-key=XXXXX --api-secret=YYYYY COMMAND [command options]
 
 Alternatively you can create a YAML-formatted config file and specify that instead. Several of the
-sub-commands need to know where to store downloaded file fragments and where to
+commands need to know where to store downloaded file fragments and where to
 store the re-assembled data files. You can specify these locations in the config
 file too. For example, create a config file called ``config.yml`` containing::
 
@@ -55,7 +75,7 @@ file too. For example, create a config file called ``config.yml`` containing::
 
 Now you can use it like::
 
-  canvas-data -c config.yml SUB-COMMAND [sub-command options]
+  canvas-data -c config.yml COMMAND [command options]
 
 Setting Up Your Database
 ^^^^^^^^^^^^^^^^^^^^^^^^
