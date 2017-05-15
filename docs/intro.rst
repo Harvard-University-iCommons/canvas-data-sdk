@@ -75,6 +75,18 @@ Note that this script will contain a ``DROP TABLE`` and a ``CREATE TABLE`` state
 every table in the schema. Please be very careful when running it -- it will
 remove all of the data from your database and you'll need to reload it.
 
+Listing the Available Dumps
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Instructure typically creates one dump per day containing the full contents of most of the
+tables, and incremental data for the ``requests`` table. Occasionally Instructure will produce
+a full dump of the ``requests`` table containing data going back to the start of your instance.
+
+You can use the ``list_dumps`` command to see the dumps that are available::
+
+  canvas-data -c config.yml list_dumps
+
+
 Getting and Unpacking Data Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -92,7 +104,8 @@ parameter.
 The command will create a sub-directory underneath your data directory named after
 the dump sequence number, and all of the data files will be stored under that.
 
-A SQL script called ``truncate_and_reload.sql`` will also be stored inside the dump
+A SQL script called ``reload_all.sql`` (or ``reload_<table_name>.sql`` if you're just unpacking
+the data for a single table) will also be stored inside the dump
 sequence directory. It contains SQL statements that will truncate all of the tables (besides
 the requests table) and will load each of the data files into a database. This can be used as
 part of a daily refresh process to keep all of your tables up to date. The SQL

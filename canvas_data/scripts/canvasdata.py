@@ -3,8 +3,12 @@ import os
 import yaml
 
 import click
+import dateutil.parser
+from dateutil import tz
+
 from canvas_data.api import CanvasDataAPI
 from canvas_data.ddl_utils import ddl_from_json
+
 
 @click.group()
 @click.option('-c', '--config', type=click.File('r'), envvar='CANVAS_DATA_CONFIG')
@@ -57,6 +61,27 @@ def get_ddl(ctx, version):
         click.echo('{};'.format(t))
     for t in create_ddl:
         click.echo('{};'.format(t))
+
+
+@cli.command()
+@click.pass_context
+def list_dumps(ctx):
+    """Lists available dumps"""
+    cd = CanvasDataAPI(
+        api_key=ctx.obj.get('api_key'),
+        api_secret=ctx.obj.get('api_secret')
+    )
+
+    dumps = cd.get_dumps()
+    for d in dumps:
+        create_date = dateutil.parser.parse(d['createdAt'])
+        localtz = tz.tzlocal()
+        create_date = create_date.astimezone(localtz)
+        detail_str = '{}\tsequence: {}\tfiles: {}\tschema: {}\tid: {}'.format(create_date, d['sequence'], d['numFiles'], d['schemaVersion'], d['dumpId'])
+        if d['numFiles'] < 60:
+            click.secho(detail_str, bg='blue', fg='white')
+        else:
+            click.echo(detail_str)
 
 
 @cli.command()
@@ -151,12 +176,18 @@ def unpack_dump_files(ctx, dump_id, download_dir, data_dir, table, force):
                                                          data_directory=dump_data_dir,
                                                          force=force))
 
-    with open(os.path.join(dump_data_dir, 'truncate_and_reload.sql'), 'w') as sqlfile:
+    if ctx.obj.get('table'):
+        reload_script = 'reload_{}.sql'.format(ctx.obj['table'])
+    else:
+        reload_script = 'reload_all.sql'
+    with open(os.path.join(dump_data_dir, reload_script), 'w') as sqlfile:
         for df in data_file_names:
             abs_df = os.path.abspath(df)
             df_path, df_file = os.path.split(df)
             table_name, ext = df_file.split('.')
-            sqlfile.write('TRUNCATE TABLE {};\n'.format(table_name))
+            if not dump_details['artifactsByTable'][table_name]['partial']:
+                # not a partial dump for this table - truncate the table first
+                sqlfile.write('TRUNCATE TABLE {};\n'.format(table_name))
             sqlfile.write("COPY {} FROM '{}';\n".format(table_name, abs_df))
 
     click.echo('Done.')

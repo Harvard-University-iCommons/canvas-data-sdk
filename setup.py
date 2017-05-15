@@ -21,5 +21,6 @@ setup(
         "Click >= 6.7",
         "PyYAML >= 3.12",
         "sqlalchemy >= 1.1.9",
+        "python-dateutil >= 2.6.0",
     ],
 )
