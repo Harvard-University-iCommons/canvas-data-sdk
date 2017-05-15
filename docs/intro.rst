@@ -21,9 +21,9 @@ Using the command line utility
 ------------------------------
 
 Installing the module via pip should have also installed a command-line utility
-called ``canvas-data``.  You can get help by using the ``--help`` option:
+called ``canvas-data``.  You can get help by using the ``--help`` option, which
+produces output like::
 
-::
   Usage: canvas-data [OPTIONS] COMMAND [ARGS]...
 
   A command-line tool to work with Canvas Data. Command-specific help is
@@ -42,7 +42,7 @@ called ``canvas-data``.  You can get help by using the ``--help`` option:
     list-dumps         Lists available dumps
     unpack-dump-files  Downloads, uncompresses and re-assembles the...
 
-The utility has several commands which you can see listed in the help output above.
+The utility has several commands which you can see listed in the help text above.
 You can get more details on each command by typing::
 
   canvas-data COMMAND --help
