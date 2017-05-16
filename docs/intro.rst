@@ -5,10 +5,9 @@ Getting Started
 Installation
 ============
 
-Install from PyPi using pip:
+Install from PyPi using pip::
 
-  ``pip install canvas-data-sdk``
-
+  pip install canvas-data-sdk
 
 Usage
 =====
