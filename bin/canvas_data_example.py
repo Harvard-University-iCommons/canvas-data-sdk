@@ -52,7 +52,7 @@ table_dump_files = cd.get_file_urls(table_name='course_dim')
 # latest_dump_files = cd.download_files(dump_id='latest', include_requests=False, directory='./downloads')
 
 # get just the course_dim table files from the latest dump
-latest_course_files = cd.download_files(dump_id='latest', table_name='course_dim', directory='./downloads')
+latest_course_files = cd.download_files(dump_id='latest', table_name='course_dim', download_directory='./downloads')
 print 'Latest course files: {}'.format(latest_course_files)
 
 
@@ -68,7 +68,3 @@ print "got {}".format(account_tsv)
 # this API takes a while to complete...
 # sync_files = cd.get_sync_file_urls()
 # pp.pprint(sync_files)
-
-
-
-# more to come!
