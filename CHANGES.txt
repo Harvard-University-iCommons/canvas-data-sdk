@@ -1,3 +1,5 @@
+v0.1.2, May 16, 2017 -- added a command line utility; many API changes.
+
 v0.1.1, April 29, 2017 -- doc updates.
 
 v0.1.0, April 29, 2017 -- initial release.
