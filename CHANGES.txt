@@ -1,3 +1,5 @@
+v0.1.3, June 28, 2017 -- python 3 fixes.
+
 v0.1.2, May 16, 2017 -- added a command line utility; many API changes.
 
 v0.1.1, April 29, 2017 -- doc updates.

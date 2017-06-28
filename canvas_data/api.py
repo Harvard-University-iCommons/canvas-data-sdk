@@ -2,7 +2,6 @@ import gzip
 import logging
 import os
 import time
-
 import requests
 from requests.exceptions import ConnectionError, RequestException
 
@@ -21,10 +20,11 @@ def retry(func):
         while True:
             try:
                 resp = func(*args, **kwargs)
+                logger.debug(resp.request.headers)
                 if resp.status_code != 200 and tries < MAX_TRIES:
                     logger.warning("Got a non-200 response ({}) - going to retry.".format(resp.status_code))
                     tries += 1
-                    time.sleep(3)
+                    time.sleep(2)
                     continue
 
             except ConnectionError as e:
@@ -32,7 +32,7 @@ def retry(func):
                 if tries < MAX_TRIES:
                     tries += 1
                     logger.exception("ConnectionError - %d/%d tries", tries, MAX_TRIES)
-                    time.sleep(3)
+                    time.sleep(2)
                     continue
                 else:
                     logger.exception("ConnectionError - reached the retry limit")
@@ -98,7 +98,7 @@ class CanvasDataAPI(object):
                     schema = response.json()
                     if key_on_tablenames:
                         fixed_schema = {}
-                        for k, v in schema['schema'].iteritems():
+                        for k, v in schema['schema'].items():
                             fixed_schema[v['tableName']] = v
                         self.schema[cache_key] = fixed_schema
                         return fixed_schema
@@ -129,8 +129,11 @@ class CanvasDataAPI(object):
                 dumps = response.json()
                 return dumps
             else:
-                response_data = response.json()
-                raise CanvasDataAPIError(response_data['message'])
+                try:
+                    response_data = response.json()
+                    raise CanvasDataAPIError(response_data['message'])
+                except:
+                    raise CanvasDataAPIError(response.text)
         except ConnectionError as e:
             raise APIConnectionError("A connection error occurred", e)
         except RequestException as e:
@@ -182,7 +185,7 @@ class CanvasDataAPI(object):
         local_files = []
         if dump_id:
             dump_files = self.get_file_urls(account_id=account_id, dump_id=dump_id)
-            for dump_table_name, artifacts in dump_files['artifactsByTable'].iteritems():
+            for dump_table_name, artifacts in dump_files['artifactsByTable'].items():
                 if table_name and table_name != dump_table_name:
                     continue
                 else:
@@ -210,11 +213,12 @@ class CanvasDataAPI(object):
         if not os.path.exists(download_directory):
             os.makedirs(download_directory)
 
-        target_file = '{}/{}'.format(download_directory, file['filename'])
+        target_file = os.path.join(download_directory, file['filename'])
         if os.path.isfile(target_file) and not force:
             logger.debug("Not downloading %s because it already exists.", target_file)
             pass
         else:
+            logger.debug("Downloading %s because it doesn't exist yet.", target_file)
             r = _get_with_retries(file['url'], stream=True)
             with open(target_file, 'wb') as fd:
                 for chunk in r.iter_content(chunk_size=128):
@@ -242,7 +246,7 @@ class CanvasDataAPI(object):
             # get the raw data files
             files = self.download_files(account_id=account_id, dump_id=dump_id, table_name=table_name, download_directory=download_directory)
 
-            with open(outfilename, 'w') as outfile:
+            with open(outfilename, 'wb') as outfile:
                 # gunzip each file and write the data to the output file
                 for infilename in files:
                     with gzip.open(infilename, 'rb') as infile:

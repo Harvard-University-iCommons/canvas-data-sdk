@@ -19,7 +19,7 @@ except:
     # For Python 3
     from urllib.parse import parse_qs
 
-logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 API_ROOT = 'https://api.inshosteddata.com'
 SIGNATURE_MESSAGE_TEMPLATE = '''GET
@@ -39,15 +39,13 @@ class CanvasDataHMACAuth(requests.auth.AuthBase):
         self.api_key = api_key
         self.api_secret = api_secret
         self.api_root = api_root
-        if sys.version_info >= (3, 0):
-            self.api_key = bytes(api_key, 'utf-8')
-            self.api_secret = bytes(api_secret, 'utf-8')
 
         self.req_date = datetime.utcnow().strftime('%a, %d %b %y %H:%M:%S GMT')
 
     def __call__(self, r):
         # build the auth header
         path = r.url
+        logger.debug(r.headers)
         if path.startswith(self.api_root):
             path = path[len(self.api_root):]
 
@@ -55,6 +53,7 @@ class CanvasDataHMACAuth(requests.auth.AuthBase):
         args_str = ''
         if '?' in path:
             [path, qs] = path.split('?')
+            logger.debug('%s %s', path, qs)
             kv_pairs = qs.split('&')
             kv_pairs.sort()
             args_str = '&'.join(kv_pairs)
@@ -65,11 +64,19 @@ class CanvasDataHMACAuth(requests.auth.AuthBase):
             args=args_str,
             date=self.req_date,
         )
-        signature = base64.b64encode(
-            hmac.new(
-                self.api_secret,
-                msg=sig_body,
-                digestmod=hashlib.sha256).digest())
+        if sys.version_info >= (3, 0):
+            sig_body = bytes(sig_body, 'utf-8')
+            sig_api_secret = bytes(self.api_secret, 'utf-8')
+        else:
+            sig_body = str(sig_body)
+            sig_api_secret = str(self.api_secret)
+        sig_hmac = hmac.new(
+            sig_api_secret,
+            msg=sig_body,
+            digestmod=hashlib.sha256
+        )
+        sig_digest = sig_hmac.digest()
+        signature = base64.b64encode(sig_digest)
         if sys.version_info >= (3, 0):
             signature = signature.decode('utf-8')
 

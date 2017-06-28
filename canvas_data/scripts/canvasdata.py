@@ -115,7 +115,7 @@ def get_dump_files(ctx, dump_id, download_dir, table, force):
     )
 
     if dump_id is 'latest':
-        dump_id = cd.get_latest_regular_dump
+        dump_id = cd.get_latest_regular_dump()
 
     # first, get the dump details so we can extract the list of fragment files to download
     dump_files = []
@@ -123,7 +123,7 @@ def get_dump_files(ctx, dump_id, download_dir, table, force):
     if ctx.obj.get('table'):
         dump_files.extend(dump_details['artifactsByTable'][ctx.obj['table']]['files'])
     else:
-        for k, v in dump_details['artifactsByTable'].iteritems():
+        for k, v in dump_details['artifactsByTable'].items():
             if k == 'requests':
                 continue
             dump_files.extend(v['files'])
@@ -160,7 +160,7 @@ def unpack_dump_files(ctx, dump_id, download_dir, data_dir, table, force):
     )
 
     if dump_id is 'latest':
-        dump_id = cd.get_latest_regular_dump
+        dump_id = cd.get_latest_regular_dump()
 
     # first make sure all of the files are downloaded
     ctx.invoke(get_dump_files, dump_id=dump_id, download_dir=ctx.obj['download_dir'], table=ctx.obj.get('table'), force=force)
