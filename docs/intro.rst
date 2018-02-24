@@ -153,9 +153,12 @@ read them from configuration, too::
   API_KEY = os.environ['API_KEY']
   API_SECRET = os.environ['API_SECRET']
 
-  cd = CanvasDataAPI(api_key=API_KEY, api_secret=API_SECRET)
+  cd = CanvasDataAPI(api_key=API_KEY, api_secret=API_SECRET, download_chunk_size=1024*1024)
 
-Now you can use this object to interact with the API as detailed below.
+Now you can use this object to interact with the API as detailed below. The ``download_chunk_size`` value
+can be used to control how much data is read into memory when stream-downloading files. Larger
+values will consume more memory; smaller values will consume more CPU. A chunk size of 1Mb (1024*1024)
+will probably be resonable in most setups.
 
 Schemas
 ^^^^^^^

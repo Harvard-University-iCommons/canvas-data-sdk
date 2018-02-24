@@ -50,7 +50,7 @@ def _get_with_retries(*args, **kwargs):
 
 class CanvasDataAPI(object):
 
-    def __init__(self, api_key, api_secret):
+    def __init__(self, api_key, api_secret, download_chunk_size=1024*1024):
         if not api_key or not api_secret:
             raise MissingCredentialsError(self)
 
@@ -59,6 +59,8 @@ class CanvasDataAPI(object):
 
         self.schema = {}
         self.schema_versions = None
+
+        self.download_chunk_size = download_chunk_size
 
     def get_schema_versions(self):
         """Get the list of all available schema versions."""
@@ -221,7 +223,7 @@ class CanvasDataAPI(object):
             logger.debug("Downloading %s because it doesn't exist yet.", target_file)
             r = _get_with_retries(file['url'], stream=True)
             with open(target_file, 'wb') as fd:
-                for chunk in r.iter_content(chunk_size=128):
+                for chunk in r.iter_content(chunk_size=self.download_chunk_size):
                     fd.write(chunk)
         return target_file
 
