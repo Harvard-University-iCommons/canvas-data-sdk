@@ -252,11 +252,12 @@ class CanvasDataAPI(object):
                 # gunzip each file and write the data to the output file
                 for infilename in files:
                     with gzip.open(infilename, 'rb') as infile:
-                        try:
-                            outfile.write(infile.read())
-                        except IOError:
-                            msg = 'Error preparing data for table {}. Input file: {}  Output file: {}'.format(table_name, infilename, outfilename)
-                            raise CanvasDataAPIError(msg)
+                        for line in infile:
+                            try:
+                                outfile.write(line)
+                            except IOError:
+                                msg = 'Error preparing data for table {}. Input file: {}  Output file: {}'.format(table_name, infilename, outfilename)
+                                raise CanvasDataAPIError(msg)
 
             return outfilename
 
