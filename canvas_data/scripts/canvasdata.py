@@ -33,7 +33,7 @@ def cli(ctx, config, api_key, api_secret):
     is available at: canvas-data COMMAND --help"""
     # if a config file was specified, read settings from that
     if config:
-        ctx.obj = yaml.load(config)
+        ctx.obj = yaml.safe_load(config)
     else:
         ctx.obj = {}
 
